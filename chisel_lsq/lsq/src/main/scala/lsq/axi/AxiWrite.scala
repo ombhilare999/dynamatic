@@ -202,6 +202,7 @@ class AxiWrite(config: LsqConfigs) extends Module {
             }
         }
 
+        // Stalling Loop:
         for (i <- 0 until config.bufferDepth) {
           when(i.U === firstFreeIdx && io.storeQIdxInToAW.ready) {
             waitingForResponse(i) := true.B
@@ -210,6 +211,7 @@ class AxiWrite(config: LsqConfigs) extends Module {
             waitingForResponse(i) := false.B
           }
         }
+        
         //Updating AXI Signals:
 
         //Write Address Signals:
