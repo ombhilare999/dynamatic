@@ -8,7 +8,7 @@ package lsq.axi
 import chisel3._
 import chisel3.util._
 import lsq.config.LsqConfigs
-import chisel3.experimental.ChiselEnum
+//import chisel3.experimental.ChiselEnum
 
 class AxiWrite(config: LsqConfigs) extends Module {
   override def desiredName: String = "AXI_WRITE"
@@ -99,15 +99,18 @@ class AxiWrite(config: LsqConfigs) extends Module {
         write_response_ready := io.BVALID & ~io.BRESP
 
         // Object for Write State Machine 
-        object State extends ChiselEnum {
-            val sIdle, sOne, sTwo, sThree = Value
-        }
+        //object State extends ChiselEnum {
+        //    val sIdle, sOne, sTwo, sThree = Value
+        //}
 
-        val state = RegInit(State.sIdle)
-        
+        //val state = RegInit(State.sIdle)
+        val sIdle :: sOne :: sTwo :: sThree  = Enum(3)
+        val state = RegInit(sIdle)
+
+
         //Write State Machine
         switch(state) {   
-            is(State.sIdle) {
+            is(sIdle) {
                 when(io.storeQIdxInToAW.valid === 1.U) {//IF write is asserted by the top module
                     when (r_transaction_cnt === 0.U){   //Means the first step of transaction
                         //First Transaction:
@@ -136,16 +139,16 @@ class AxiWrite(config: LsqConfigs) extends Module {
                         
                         when (io.AWREADY === 1.U){ //Valid and Ready high at the same time
                             r_transaction_cnt := 0.U
-                            state := State.sOne
+                            state := sOne
                             r_AW_VALID := 0.U
                         } .otherwise {
                             r_transaction_cnt := r_transaction_cnt + 1.U  //Increment on each transaction 
                         }
                     } .otherwise {
-                        when (io.AW_READY === 1.U){ //Valid and Ready high at the same time
+                        when (io.AWREADY === 1.U){ //Valid and Ready high at the same time
                             r_transaction_cnt := 0.U
                             r_AW_VALID := 0.U
-                            state := State.sOne
+                            state := sOne
                         } .otherwise {
                             // Hold the Values
                             r_AW_BURST := r_AW_BURST
@@ -160,23 +163,23 @@ class AxiWrite(config: LsqConfigs) extends Module {
                         }
                     } 
                 } .otherwise {
-                    state := State.sIdle
+                    state := sIdle
                 }
             } 
-            is(State.sOne){
+            is(sOne){
                 when(io.WREADY === 1.U) {  
                     when (r_len > 0.U) { 
                         r_len      := r_len - 1.U
                         r_W_DATA   := io.storeDataToMem
                         r_W_ID     := firstFreeIdx
-                        state      := State.sOne     
+                        state      := sOne     
                         r_transaction_cnt := r_transaction_cnt + 1.U   
                         when (r_len === 1.U){
                             r_W_LAST   := 1.U      
                         }
                     } .otherwise {
                         r_transaction_cnt := 0.U
-                        state := State.sTwo      //Go to next state 
+                        state := sTwo      //Go to next state 
                         r_W_LAST  := 0.U
                         r_W_DATA   := 0.U    
                         r_W_STRB   := 0.U
@@ -191,13 +194,13 @@ class AxiWrite(config: LsqConfigs) extends Module {
                     r_W_LAST   := r_W_LAST               
                     r_W_STRB   := r_W_STRB
                     r_W_VALID  := r_W_VALID
-                    state := State.sOne
+                    state := sOne
                 }
             }
-            is(State.sTwo){
+            is(sTwo){
                 r_B_READY := 1.U        //Stating master is ready to accept the write response
                 when (write_response_ready === 1.U) {
-                    state     := State.sIdle
+                    state     := sIdle
                 }
             }
         }
@@ -211,7 +214,7 @@ class AxiWrite(config: LsqConfigs) extends Module {
             waitingForResponse(i) := false.B
           }
         }
-        
+
         //Updating AXI Signals:
 
         //Write Address Signals:
@@ -220,20 +223,20 @@ class AxiWrite(config: LsqConfigs) extends Module {
         io.AWLEN   := r_AW_LEN  
         io.AWSIZE  := r_AW_SIZE 
         io.AWID    := r_AW_ID    
-        io.AWVALID := r_AW_VALID.asBool 
+        io.AWVALID := r_AW_VALID.asBool() 
         io.AWPROT  := r_AW_PROT 
         io.AWQOS   := r_AW_QOS
         io.AWREGION := r_AW_REGION
-        io.AWLOCK  := r_AW_LOCK.asBool 
+        io.AWLOCK  := r_AW_LOCK.asBool() 
         io.AWCACHE := r_AW_CACHE 
 
         //Write Data Signals:
         io.WDATA   := r_W_DATA
-        io.WLAST   := r_W_LAST.asBool 
+        io.WLAST   := r_W_LAST.asBool() 
         io.WSTRB   := r_W_STRB
-        io.WVALID  := r_W_VALID.asBool 
+        io.WVALID  := r_W_VALID.asBool() 
         io.WID     := r_W_ID
 
         //Write Response Channel:
-        io.B_READY  := r_B_READY.asBool 
+        io.BREADY  := r_B_READY.asBool() 
 }

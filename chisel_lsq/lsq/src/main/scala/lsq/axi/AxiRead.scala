@@ -47,7 +47,7 @@ class AxiRead(config: LsqConfigs) extends Module {
   // Registered Signals:
 
   //Read Address signals:
-  val r_AR_ID    = RegInit(0.U(config.bufferIdxWidth.W))
+  val r_AR_ID    = RegInit(0.U(config.bufferIdxWidth))
   val r_AR_ADDR  = RegInit(0.U(config.addrWidth.W))
   val r_AR_LEN   = RegInit(0.U(8.W))
   val r_AR_SIZE  = RegInit(0.U(3.W))
@@ -80,15 +80,18 @@ class AxiRead(config: LsqConfigs) extends Module {
   val hasFreeIdx = waitingForData.exists((x : Bool) => !x)
 
   // Object for Write State Machine 
-  object Rx_State extends ChiselEnum {
-      val sIdle, sOne, sTwo, sThree = Value
-  }
+  //object Rx_State extends ChiselEnum {
+  //    val sIdle, sOne, sTwo, sThree = Value
+  //}
 
-  val rx_state = RegInit(Rx_State.sIdle)
+  //val rx_state = RegInit(Rx_State.sIdle)
+
+  val sIdle :: sOne :: sTwo :: sThree = Enum(3)
+  val rx_state = RegInit(sIdle)
 
     //Write State Machine
     switch(rx_state) {   
-        is(Rx_State.sIdle){
+        is(sIdle){
             when(io.loadQIdxForAddrIn.valid === 1.U) {               //IF write is asserted by the top module
                 when(rx_transaction_cnt === 0.U) {
                     //First Transaction:
@@ -109,7 +112,7 @@ class AxiRead(config: LsqConfigs) extends Module {
 
                     when(io.ARREADY === 1.U) {     //Valid and Ready High at
                         rx_transaction_cnt := 0.U 
-                        rx_state := Rx_State.sOne
+                        rx_state := sOne
                         r_AR_VALID := 0.U
                     } .otherwise {
                         rx_transaction_cnt := rx_transaction_cnt + 1.U
@@ -119,7 +122,7 @@ class AxiRead(config: LsqConfigs) extends Module {
                     when(io.ARREADY === 1.U){
                         rx_transaction_cnt := 0.U
                         r_AR_VALID         := 0.U
-                        rx_state := Rx_State.sOne
+                        rx_state := sOne
                     } .otherwise {
                         //Hold the values
                         r_AR_ADDR  := io.loadAddrToMem
@@ -134,23 +137,23 @@ class AxiRead(config: LsqConfigs) extends Module {
                     }
                 }
             } .otherwise {
-                rx_state := Rx_State.sIdle
+                rx_state := sIdle
             }
         }
-        is(Rx_State.sOne){
+        is(sOne){
             when(io.RVALID === 1.U){
                 when (rx_len >= 1.U){
                     rx_len    := rx_len - 1.U 
                     r_R_RDATA := io.RDATA
-                    rx_state  := Rx_State.sOne
+                    rx_state  := sOne
                     when (read_response_ready === 1.U){
                         r_R_READY := 0.U
-                        rx_state := Rx_State.sIdle
+                        rx_state := sIdle
                     }
                 }
             } .otherwise {
                 r_R_RDATA := 0.U
-                rx_state  := Rx_State.sOne
+                rx_state  := sOne
             }
         }
     }
@@ -178,15 +181,15 @@ class AxiRead(config: LsqConfigs) extends Module {
     io.ARLEN   := r_AR_LEN
     io.ARSIZE  := r_AR_SIZE
     io.ARID    := r_AR_ID
-    io.ARVALID := r_AR_VALID
+    io.ARVALID := r_AR_VALID.asBool() 
     io.ARPROT  := r_AR_PROT
     io.ARQOS    := r_AR_QOS
     io.ARREGION := r_AR_REGION
-    io.ARLOCK   := r_AR_LOCK.asBool 
+    io.ARLOCK   := r_AR_LOCK.asBool() 
     io.ARCACHE  := r_AR_CACHE  
     
     //Read Data/Response Channel:
-    io.RREADY   := r_R_READY
+    io.RREADY   := r_R_READY.asBool() 
 
     //Signals to Top Module:
     io.loadDataFromMem := r_R_RDATA
