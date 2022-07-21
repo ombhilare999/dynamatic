@@ -61,7 +61,8 @@ class AxiRead(config: LsqConfigs) extends Module {
   val r_AR_READY = RegInit(0.U(1.W))
   
   //Read Data/Response Channel
-  val r_R_RDATA   = RegInit(0.U(32.W))
+  //val r_R_ID     = RegInit(0.U(config.bufferIdxWidth))
+  val r_R_RDATA  = RegInit(0.U(32.W))
   val r_R_READY  = RegInit(0.U(1.W))
 
   //Extra Variables read:
@@ -143,6 +144,7 @@ class AxiRead(config: LsqConfigs) extends Module {
         is(sOne){
             when(io.RVALID === 1.U){
                 when (rx_len >= 1.U){
+                    //io.RID    := firstFreeIdx
                     rx_len    := rx_len - 1.U 
                     r_R_RDATA := io.RDATA
                     rx_state  := sOne
@@ -190,6 +192,7 @@ class AxiRead(config: LsqConfigs) extends Module {
     
     //Read Data/Response Channel:
     io.RREADY   := r_R_READY.asBool() 
+    //io.RID      := r_R_ID
 
     //Signals to Top Module:
     io.loadDataFromMem := r_R_RDATA
